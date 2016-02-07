@@ -1,5 +1,7 @@
 # quad_stepper
-Arduino program to synchronize a stepper motor to a quadrature rotation sensor, multiplied by a fraction m/d &lt; 1
+Arduino program to synchronize a stepper motor to a quadrature rotation sensor, multiplied by a fraction
+
+I developed this for my gear cutting rig - a milling machine with a hob cutter attached to a quadrature sensor and a 4th axis holding the gear workpiece to be cut. The division is perfomed by a variant of the Bresenham algorithm that is normally used for drawing straight lines on bit mapped devices. In order to divide by fractional factors, stepper motor steps has to be regularily omitted. This would be impossible with full stepping, but works with a certain degree of microstepping.
 
 ## Developed with
 - Arduino development environment 1.6.7 om Mac OS X
@@ -30,8 +32,9 @@ Commands
 - set d x - sets the divider to x
 - set ms x - sets the microstepping mode to x
 
-All commands are terminated newline. 
+All commands are terminated by newline. 
 Program responds with OK.
+Multiplier m must be less than or equal to divider d.
 Parameters are not stored, so they have to be set at every power-on.
 
 ### Microstepping modes
