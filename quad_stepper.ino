@@ -35,10 +35,10 @@ byte nextState[] = {
 
 byte loopCounter = 0;
 byte state = 0;
-long int m = 1;
-long int d = 1;
-long int sum = 0;
-byte ms = 0;  // single step (no microstepping) (0, 1, 2, 3, 4, 5 for 1, 2, 4, 8, 16, 32)
+long m = 1;
+long d = 1;
+long sum = 0;
+int ms = 0;  // single step (no microstepping) (0, 1, 2, 3, 4, 5 for 1, 2, 4, 8, 16, 32)
 
 void processIncomingByte (const byte inByte);
 
@@ -104,18 +104,22 @@ void outputMicrostep() {
 // set d n - sets dividend to n decimal
 // set ms n - sets microstepping to 1, 2, 4, 8, 16, 32
 // terminate with LF
-void process_data (const char * data) {
-  if (sscanf(data, "set m %d", &m) == 1
-      || sscanf(data, "set d %d", &d) == 1
+void process_data (char * data) {
+  if (sscanf(data, "set m %ld", &m) == 1
+      || sscanf(data, "set d %ld", &d) == 1
       || sscanf(data, "set ms %d", &ms) == 1) {
     Serial.println("OK");
     outputMicrostep();
+  } else if (strcmp(data, "get") == 0) {
+    sprintf(data, "m=%ld", m); Serial.println(data);
+    sprintf(data, "d=%ld", d); Serial.println(data);
+    sprintf(data, "ms=%d", ms); Serial.println(data);
   } else {
     Serial.println("ERROR");
   }
 }
 
-#define MAX_INPUT 10
+#define MAX_INPUT 50
 void processIncomingByte (const byte inByte) {
   static char input_line [MAX_INPUT];
   static unsigned int input_pos = 0;
