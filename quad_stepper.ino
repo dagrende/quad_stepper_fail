@@ -1,5 +1,7 @@
 // quadrature stepper
 
+#include <EEPROM.h>
+
 #define dirOut 0  // stepper direction
 #define stepOut 1 // stepper step
 #define q0In 2    // quadrature sensor phase 0
@@ -35,10 +37,14 @@ byte nextState[] = {
 
 byte loopCounter = 0;
 byte state = 0;
-long m = 1;
-long d = 1;
+struct {
+  long m;
+  long d;
+  int ms;  // single step (no microstepping) (0, 1, 2, 3, 4, 5 for 1, 2, 4, 8, 16, 32)
+} prefs = {1, 1, 0};
+
+
 long sum = 0;
-int ms = 0;  // single step (no microstepping) (0, 1, 2, 3, 4, 5 for 1, 2, 4, 8, 16, 32)
 
 void processIncomingByte (const byte inByte);
 
@@ -60,6 +66,13 @@ void setup() {
 
   outputMicrostep();
   digitalWrite(dirOut, 0);
+
+  EEPROM.get(0, prefs);
+  if (prefs.m < 1) {
+    prefs.m = 1;
+    prefs.d = 1;
+    prefs.ms = 0;
+  }
 }
 
 
@@ -76,28 +89,28 @@ void loop() {
   if (forward) {
     // quad forward
     digitalWrite(dirOut, 1);
-    sum += m;
-    if (sum >= d) {
+    sum += prefs.m;
+    if (sum >= prefs.d) {
       digitalWrite(stepOut, 1);
-      sum -= d;
+      sum -= prefs.d;
       digitalWrite(stepOut, 0);
     }
   } else if (backward) {
     // quad back
     digitalWrite(dirOut, 0);
-    sum -= m;
+    sum -= prefs.m;
     if (sum < 0) {
       digitalWrite(stepOut, 1);
-      sum += d;
+      sum += prefs.d;
       digitalWrite(stepOut, 0);
     }
   }
 }
 
 void outputMicrostep() {
-   digitalWrite(ms0Out, ms & 1);
-   digitalWrite(ms1Out, ms & 2);
-   digitalWrite(ms2Out, ms & 4);
+   digitalWrite(ms0Out, prefs.ms & 1);
+   digitalWrite(ms1Out, prefs.ms & 2);
+   digitalWrite(ms2Out, prefs.ms & 4);
 }
 
 // set m n - sets multiplier to n decimal
@@ -105,15 +118,16 @@ void outputMicrostep() {
 // set ms n - sets microstepping to 1, 2, 4, 8, 16, 32
 // terminate with LF
 void process_data (char * data) {
-  if (sscanf(data, "set m %ld", &m) == 1
-      || sscanf(data, "set d %ld", &d) == 1
-      || sscanf(data, "set ms %d", &ms) == 1) {
-    Serial.println("OK");
+  if (sscanf(data, "set m %ld", &prefs.m) == 1
+      || sscanf(data, "set d %ld", &prefs.d) == 1
+      || sscanf(data, "set ms %d", &prefs.ms) == 1) {
+    Serial.println(data);
     outputMicrostep();
+    EEPROM.put(0, prefs);
   } else if (strcmp(data, "get") == 0) {
-    sprintf(data, "m=%ld", m); Serial.println(data);
-    sprintf(data, "d=%ld", d); Serial.println(data);
-    sprintf(data, "ms=%d", ms); Serial.println(data);
+    sprintf(data, "m=%ld", prefs.m); Serial.println(data);
+    sprintf(data, "d=%ld", prefs.d); Serial.println(data);
+    sprintf(data, "ms=%d", prefs.ms); Serial.println(data);
   } else {
     Serial.println("ERROR");
   }
