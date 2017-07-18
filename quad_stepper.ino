@@ -42,8 +42,6 @@ struct {
   long d;
   int ms;  // single step (no microstepping) (0, 1, 2, 3, 4, 5 for 1, 2, 4, 8, 16, 32)
 } prefs = {1, 1, 0};
-
-
 long sum = 0;
 
 void processIncomingByte (const byte inByte);
@@ -64,7 +62,6 @@ void setup() {
   
 //  pinMode(loopOut, OUTPUT);
 
-  outputMicrostep();
   digitalWrite(dirOut, 0);
 
   EEPROM.get(0, prefs);
@@ -73,15 +70,17 @@ void setup() {
     prefs.d = 1;
     prefs.ms = 0;
   }
+  outputMicrostep();
 }
 
 
 void loop() {
   // digitalWrite(loopOut, (loopCounter++) & 1);
 
-  while (Serial.available() > 0)
+  while (Serial.available() > 0) {
     processIncomingByte(Serial.read());
-
+  }
+  
   byte newState = nextState[(state & 3) << 2 | (~PIND & 3)];
   state = newState & 0b11;
   byte forward = (newState & 0b0100) != 0;
@@ -123,13 +122,17 @@ void process_data (char * data) {
       || sscanf(data, "set ms %d", &prefs.ms) == 1) {
     Serial.println(data);
     outputMicrostep();
+    sum = 0;
     EEPROM.put(0, prefs);
   } else if (strcmp(data, "get") == 0) {
     sprintf(data, "m=%ld", prefs.m); Serial.println(data);
     sprintf(data, "d=%ld", prefs.d); Serial.println(data);
     sprintf(data, "ms=%d", prefs.ms); Serial.println(data);
+    sprintf(data, "sum=%ld", sum); Serial.println(data);
   } else {
     Serial.println("ERROR");
+    Serial.print("data length="); Serial.println(strlen(data));
+    Serial.print("data="); Serial.println(data);
   }
 }
 
@@ -141,8 +144,8 @@ void processIncomingByte (const byte inByte) {
   switch (inByte) {
   case '\n':   // end of text
     input_line [input_pos] = 0;  // terminating null byte
-    process_data (input_line);
     input_pos = 0;  
+    process_data (input_line);
     break;
   case '\r':   // discard carriage return
     break;
