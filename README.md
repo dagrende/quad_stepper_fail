@@ -33,11 +33,11 @@ Commands
 - set m x - set the multiplier to x
 - set d x - sets the divider to x
 - set ms x - sets the microstepping mode to x
+- get - prints all parameter values
 
 All commands are terminated by newline. 
-Program responds with OK.
 Multiplier m must be less than or equal to divider d.
-Parameters are not stored, so they have to be set at every power-on.
+Parameters are stored in EEPROM, and restored at power-on.
 
 ### Microstepping modes
 - 0 - 1/1 (no microstepping)
