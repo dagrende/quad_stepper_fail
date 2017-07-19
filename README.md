@@ -21,7 +21,7 @@ Connect Arduino pin function - to
 - 8 ms0Out - Pololu M1
 - 9 ms0Out - Pololu M2
 
-![Pololu pinout)[Pololu-DRV8825.png]
+![Pololu pinout](Pololu-DRV8825.png)
 
 ## Serial commands
 
