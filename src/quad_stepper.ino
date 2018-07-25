@@ -18,17 +18,17 @@ byte nextState[] = {
   0b0101,  //0001 forw
   0b1011,  //0010 back
   0b0101,  //0011 error forw
-  
+
   0b1000,  //0100 back
   0b0001,  //0101 same
   0b0110,  //0110 error forw
   0b0110,  //0111 forw
-  
+
   0b0111,  //1000 error forw
   0b1001,  //1001 back
   0b0111,  //1010 forw
   0b0010,  //1011 same
-  
+
   0b0100,  //1100 forw
   0b0100,  //1101 error forw
   0b0011,  //1110 same
@@ -44,22 +44,24 @@ struct {
 } prefs = {1, 1, 0};
 long sum = 0;
 
+char encoderChange(char a, char b);
 void processIncomingByte (const byte inByte);
+
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  
+
   pinMode(q0In, INPUT_PULLUP);
   pinMode(q1In, INPUT_PULLUP);
-  
+
   pinMode(dirOut, OUTPUT);
   pinMode(stepOut, OUTPUT);
-  
+
   pinMode(ms0Out, OUTPUT);
   pinMode(ms1Out, OUTPUT);
   pinMode(ms2Out, OUTPUT);
-  
+
 //  pinMode(loopOut, OUTPUT);
 
   digitalWrite(dirOut, 0);
@@ -73,19 +75,13 @@ void setup() {
   outputMicrostep();
 }
 
+long pos = 0;
+long qpn = 0;
 
-void loop() {
-  // digitalWrite(loopOut, (loopCounter++) & 1);
+int maxRec = 10000;
 
-  while (Serial.available() > 0) {
-    processIncomingByte(Serial.read());
-  }
-  
-  byte newState = nextState[(state & 3) << 2 | (~PIND & 3)];
-  state = newState & 0b11;
-  byte forward = (newState & 0b0100) != 0;
-  byte backward = (newState & 0b1000) != 0;
-  if (forward) {
+void oneChange(char change) {
+  if (change == 1) {
     // quad forward
     digitalWrite(dirOut, 1);
     sum += prefs.m;
@@ -93,8 +89,9 @@ void loop() {
       digitalWrite(stepOut, 1);
       sum -= prefs.d;
       digitalWrite(stepOut, 0);
+      ++pos;
     }
-  } else if (backward) {
+  } else if (change == -1) {
     // quad back
     digitalWrite(dirOut, 0);
     sum -= prefs.m;
@@ -102,14 +99,97 @@ void loop() {
       digitalWrite(stepOut, 1);
       sum += prefs.d;
       digitalWrite(stepOut, 0);
+      --pos;
     }
   }
+  qpn += change;
 }
+
+void loop() {
+  // digitalWrite(loopOut, (loopCounter++) & 1);
+
+  while (Serial.available() > 0 && maxRec > 0) {
+    processIncomingByte(Serial.read());
+    maxRec--;
+  }
+
+  // char change = encoderChange(digitalRead(q0In), digitalRead(q1In));
+  // if (change != 0) {
+  //   oneChange(change);
+  // }
+  digitalWrite(dirOut, 0);
+  digitalWrite(stepOut, 1);
+  delay(1);
+  digitalWrite(stepOut, 0);
+  delay(5);
+}
+
+// call continously with the two phases A, B of the quadrature encoder
+// returns the change to the position based on any quadrature switch change
+char encoderChange(char a, char b) {
+  // position change based on [fromSwitches][toSwitches]
+  // where switches is two bits AB
+  static char changeTable[4][4] = {
+   //00  01  10  11 - prevSwitches
+    { 0,  1, -1,  0}, //00 - switches
+    {-1,  0,  0,  1}, //01
+    { 1,  0,  0, -1}, //10
+    { 0, -1,  1,  0}  //11
+  };
+  static char prevSwitches = -1;
+
+  char switches = (a << 1) + b;
+  if (prevSwitches == -1) {
+    prevSwitches = switches;
+  }
+  char change = changeTable[prevSwitches][switches];
+  prevSwitches = switches;
+  return change;
+}
+
 
 void outputMicrostep() {
    digitalWrite(ms0Out, prefs.ms & 1);
    digitalWrite(ms1Out, prefs.ms & 2);
    digitalWrite(ms2Out, prefs.ms & 4);
+}
+
+// simulate 10000
+void test() {
+  pos = 0;
+  sum = 0;
+  int n = 5600;
+  for (int i = 0; i < n; ++i) {
+    oneChange(1);
+  }
+  Serial.print("n="); Serial.println(n);
+  Serial.print("pos="); Serial.println(pos);
+  Serial.print("sum="); Serial.println(sum);
+
+  Serial.print("correct pos="); Serial.println(n * prefs.m / prefs.d);
+}
+
+void usDelay(unsigned long d) {
+  unsigned long start = micros();
+  while (micros() - start < d) ;
+}
+
+void nForward(int n) {
+  reset();
+  for (int i = 0; i < n; ++i) {
+    oneChange(n > 0 ? 1 : -1);
+    usDelay(5000);
+  }
+}
+
+void reset() {
+  pos = 0;
+  sum = 0;
+  qpn = 0;
+}
+
+void savePrefs() {
+  EEPROM.put(0, prefs);
 }
 
 // set m n - sets multiplier to n decimal
@@ -119,20 +199,34 @@ void outputMicrostep() {
 void process_data (char * data) {
   if (sscanf(data, "set m %ld", &prefs.m) == 1
       || sscanf(data, "set d %ld", &prefs.d) == 1
-      || sscanf(data, "set ms %d", &prefs.ms) == 1) {
+          // || sscanf(data, "set ms %d", &prefs.ms) == 1
+        ) {
     Serial.println(data);
     outputMicrostep();
     sum = 0;
-    EEPROM.put(0, prefs);
+    savePrefs();
+  } else if (strncmp(data, "set ms ", 7) == 0) {
+    prefs.ms = atoi(data + 7);
+    outputMicrostep();
+    savePrefs();
   } else if (strcmp(data, "get") == 0) {
-    sprintf(data, "m=%ld", prefs.m); Serial.println(data);
-    sprintf(data, "d=%ld", prefs.d); Serial.println(data);
-    sprintf(data, "ms=%d", prefs.ms); Serial.println(data);
-    sprintf(data, "sum=%ld", sum); Serial.println(data);
+    Serial.print("m="); Serial.println(prefs.m);
+    Serial.print("d="); Serial.println(prefs.d);
+    Serial.print("ms="); Serial.println(prefs.ms);
+    Serial.print("sum="); Serial.println(sum);
+    Serial.print("pos="); Serial.println(pos);
+    Serial.print("qpn="); Serial.println(qpn);
+  } else if (strcmp(data, "reset") == 0) {
+    reset();
+  } else if (strcmp(data, "test") == 0) {
+    test();
+  } else if (strncmp(data, "forw ", 5) == 0) {
+    nForward(atoi(data + 5));
   } else {
     Serial.println("ERROR");
     Serial.print("data length="); Serial.println(strlen(data));
     Serial.print("data="); Serial.println(data);
+
   }
 }
 
@@ -140,11 +234,13 @@ void process_data (char * data) {
 void processIncomingByte (const byte inByte) {
   static char input_line [MAX_INPUT];
   static unsigned int input_pos = 0;
-  
+
   switch (inByte) {
   case '\n':   // end of text
-    input_line [input_pos] = 0;  // terminating null byte
-    input_pos = 0;  
+  // Serial.print("input_pos="); Serial.println(input_pos);
+  // Serial.print("input_line[input_pos]="); Serial.println(input_line[input_pos]);
+    input_line[input_pos] = 0;  // terminating null byte
+    input_pos = 0;
     process_data (input_line);
     break;
   case '\r':   // discard carriage return
@@ -155,6 +251,5 @@ void processIncomingByte (const byte inByte) {
       input_line [input_pos++] = inByte;
     break;
   }  // end of switch
- 
-} // end of processIncomingByte  
 
+} // end of processIncomingByte
