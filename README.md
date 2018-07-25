@@ -5,10 +5,10 @@ I developped this for my gear cutting rig - a milling machine with a hob cutter 
 
 ## Developed with
 - Arduino development environment 1.6.7 om Mac OS X
-- SparkFun Pro Micro 5V/16MHz
-- Pololu DRV8825 stepper driver
-- ebay item: NEW 4 PCS/ lot 360P/R Output DC5~24V AB 2ph Shaft 6mm 5000rpm Rotary Encoder
-- ebay item: 4th Axis Hollow Shaft CNC Router Rotational A Axis Φ100MM 4 Jaw Dividing Head
+- [SparkFun Pro Micro 5V/16MHz](https://www.sparkfun.com/products/12640)
+- [Pololu DRV8825 stepper driver](https://www.pololu.com/product/2132)
+- [ebay item: NEW 4 PCS/ lot 360P/R Output DC5~24V AB 2ph Shaft 6mm 5000rpm Rotary Encoder](http://www.ebay.com/itm/NEW-4-PCS-lot-360P-R-Voltage-Output-DC5-24V-AB-2ph-6mm-Incremental-Encoder-/121850689062)
+- [ebay item: 4th Axis Hollow Shaft CNC Router Rotational A Axis Φ100MM 4 Jaw Dividing Head](http://www.ebay.com/itm/4th-Axis-Hollow-Shaft-CNC-Router-Rotational-A-Axis-100MM-4-Jaw-Chuck-Engraving-/151732883438)
 
 ##Connections
 
@@ -20,6 +20,8 @@ Connect Arduino pin function - to
 - 7 ms0Out - Pololu M0
 - 8 ms0Out - Pololu M1
 - 9 ms0Out - Pololu M2
+
+![Pololu pinout](Pololu-DRV8825.png)
 
 ## Serial commands
 
